@@ -1,0 +1,1 @@
+jar -cvfm IPCam.jar manifest.txt *.class *.mp3 javazoom
