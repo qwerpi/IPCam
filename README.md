@@ -12,14 +12,14 @@ motion (optional) - "motion" to highlight areas where motion was detected in red
 disable_IPW_features - "IPW" enables features specific to the IP Webcam Android app. Anything else turns this feature off.
 
 ## Keyboard Shortcuts
-<pre><code>   A / left arrow - move image left</code></pre>
-<pre><code>   S / down arrow - move image down</code></pre>
-<pre><code>  D / right arrow - move image right</code></pre>
-<pre><code>     W / up arrow - move image up</code></pre>
-<pre><code>Shift + direction - speed up</code></pre>
-<pre><code>                R - reset window</code></pre>
-<pre><code>                Q - zoom out</code></pre>
-<pre><code>                E - zoom in</code></pre>
-<pre><code>                F - refocus (IPW option only)</code></pre>
-<pre><code>                T - torch (IPW option only)</code></pre>
-<pre><code>                A - move image left</code></pre>
+<pre><code>   A / left arrow - move image left
+   S / down arrow - move image down
+  D / right arrow - move image right
+     W / up arrow - move image up
+Shift + direction - speed up
+                R - reset window
+                Q - zoom out
+                E - zoom in
+                F - refocus (IPW option only)
+                T - torch (IPW option only)
+                A - move image left</code></pre>
