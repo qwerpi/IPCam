@@ -40,7 +40,7 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 		if(args.length > 4 && !args[4].equals("IPW"))
 			IPW = false;
 
-		if (IPW && !args[0].endsWith(":8080/shot.jpg"))
+		if (IPW && args[0].indexOf("192.168.1.") > 0 && !args[0].endsWith(":8080/shot.jpg"))
 			args[0] = args[0] + ":8080/shot.jpg";
 
 		ADDRESS = args[0];
@@ -86,7 +86,6 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 						}
 						prevImg = currImg;
 					} catch (Exception ex) {
-						System.err.println(ex);
 					}
 					repaint();
 				}
