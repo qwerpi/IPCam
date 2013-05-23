@@ -11,13 +11,13 @@ import javax.imageio.*;
 
 public class IPCam extends Canvas implements KeyListener, ActionListener {
 	
-	private int dx, dy, speed = 1;
+	private int dx, dy, speed = 1, FX = 320, FY = 480;
 	private float zoom = 1.1f;
-	private boolean torch, focus, w, a, s, d, q, e, overDelayThreshold, drawMotionArea = false, IPW = true;
+	private boolean torch, focus, w, a, s, d, q, e, blackBackground, overDelayThreshold, drawMotionArea = false, IPW = true, fSet = false;
 	private long maxDelay, lastImageTime, delay;
 	
 	private BufferedImage currImg, prevImg;
-	private final int THRESHOLD, BLKSIZE = 8, FX = 320, FY = 480;
+	private final int THRESHOLD, BLKSIZE = 8;
 	private final javax.swing.Timer PAUSETMR, MOVETMR;
 	private final ArrayList<Rectangle> BOXES;
 	private final String ADDRESS;
@@ -27,8 +27,10 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 	private final File PATH;
 	
 	public IPCam(String[] args) {
-		if(args.length < 3)
+		if(args.length < 3) {
+			System.err.println("Usage: ./IPCam.jar [address] [motion_detect_threshold] [delay_warning_threshold] [optional motion] [optional disable_IPW_features]");
 			System.exit(0);
+		}
 		if (!args[0].startsWith("http"))
 			args[0] = "http://" + args[0];
 		THRESHOLD = Integer.parseInt(args[1]);
@@ -55,7 +57,7 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 		D = Toolkit.getDefaultToolkit().getScreenSize();
 		FRAME.setLocation((D.width - FX) / 2, (D.height - FY) / 2);
 		FRAME.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		FRAME.getContentPane().setBackground(new Color(11, 11, 11));
+		// FRAME.getContentPane().setBackground(new Color(11, 11, 11));
 		setPreferredSize(new Dimension(FX, FY));
 		addKeyListener(this);
 		
@@ -78,6 +80,14 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 				while (true) {
 					try {
 						currImg = ImageIO.read(new URL(ADDRESS));
+						FX = currImg.getWidth();
+						FY = currImg.getHeight();
+						if (!fSet) {
+							setPreferredSize(new Dimension(FX, FY));
+							FRAME.setLocation((D.width - FX) / 2, (D.height - FY) / 2);
+							FRAME.pack();
+							fSet = true;
+						}
 						lastImageTime = System.currentTimeMillis();
 						if (!difference().isEmpty()) {
 							SND.fx();
@@ -108,6 +118,8 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 		FRAME.add(this);
 		FRAME.pack();
 		FRAME.setVisible(true);
+
+		requestFocus();
 
 		// try{
 		// 	Robot rob = new Robot();
@@ -170,26 +182,18 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 	public void keyPressed(KeyEvent ke) {
 		switch (ke.getKeyCode()) {
 		case KeyEvent.VK_W:
-			w = true;
-			break;
 		case KeyEvent.VK_UP:
 			w = true;
 			break;
 		case KeyEvent.VK_A:
-			a = true;
-			break;
 		case KeyEvent.VK_LEFT:
 			a = true;
 			break;
 		case KeyEvent.VK_S:
-			s = true;
-			break;
 		case KeyEvent.VK_DOWN:
 			s = true;
 			break;
 		case KeyEvent.VK_D:
-			d = true;
-			break;
 		case KeyEvent.VK_RIGHT:
 			d = true;
 			break;
@@ -205,7 +209,7 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 		case KeyEvent.VK_R:
 			dx = dy = 0;
 			zoom = 1.1f;
-			setSize(FX, FY);
+			setPreferredSize(new Dimension(FX, FY));
 			if (FRAME.getLocation().getX() == (D.width - FX) / 2 && FRAME.getLocation().getY() == (D.height - FY) / 2)
 				FRAME.setLocation(0, 0);
 			else
@@ -232,6 +236,9 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 						new URL(ADDRESS + "/" + (torch ? "enable" : "disable") + "torch").openConnection().getInputStream());
 				isr.close();
 			} catch (Exception ex) {}
+			break;
+		case KeyEvent.VK_B:
+			blackBackground = !blackBackground;
 			break;
 		}
 	}
@@ -261,26 +268,18 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 	public void keyReleased(KeyEvent ke) {
 		switch (ke.getKeyCode()) {
 		case KeyEvent.VK_W:
-			w = false;
-			break;
 		case KeyEvent.VK_UP:
 			w = false;
 			break;
 		case KeyEvent.VK_A:
-			a = false;
-			break;
 		case KeyEvent.VK_LEFT:
 			a = false;
 			break;
 		case KeyEvent.VK_S:
-			s = false;
-			break;
 		case KeyEvent.VK_DOWN:
 			s = false;
 			break;
 		case KeyEvent.VK_D:
-			d = false;
-			break;
 		case KeyEvent.VK_RIGHT:
 			d = false;
 			break;
@@ -341,8 +340,20 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 		Dimension d = getSize();
 		offscreen = createImage(d.width, d.height);
 		offgc = offscreen.getGraphics();
-		offgc.setColor(getBackground());
-		offgc.fillRect(0, 0, d.width, d.height);
+		if (blackBackground) {
+			offgc.setColor(Color.BLACK);
+			offgc.fillRect(0, 0, getWidth(), getHeight());
+		} else {
+			offgc.setColor(Color.WHITE);
+			offgc.fillRect(0, 0, getWidth(), getHeight());
+			offgc.setColor(new Color(191, 191, 191));
+			for (int i = 0; i < getWidth(); i += 16) {
+				for (int j = 0; j < getHeight(); j += 16) {
+					offgc.fillRect(i, j, 8, 8);
+					offgc.fillRect(i + 8, j + 8, 8, 8);
+				}
+			}
+		}
 		offgc.setColor(getForeground());
 		paint(offgc);
 		g.drawImage(offscreen, 0, 0, this);
