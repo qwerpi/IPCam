@@ -11,13 +11,13 @@ import javax.imageio.*;
 
 public class IPCam extends Canvas implements KeyListener, ActionListener {
 	
-	private int dx, dy, speed = 1;
+	private int dx, dy, speed = 1, fx = 320, fy = 480, threshold;
 	private float zoom = 1.1f;
-	private boolean torch, focus, w, a, s, d, q, e, overDelayThreshold, drawMotionArea = false, IPW = true;
+	private boolean torch, focus, w, a, s, d, q, e, blackBackground, overDelayThreshold, detectMotion = false, drawMotionArea = false, IPW = true, fSet = false;
 	private long maxDelay, lastImageTime, delay;
 	
 	private BufferedImage currImg, prevImg;
-	private final int THRESHOLD, BLKSIZE = 8, FX = 320, FY = 480;
+	private final int BLKSIZE = 8;
 	private final javax.swing.Timer PAUSETMR, MOVETMR;
 	private final ArrayList<Rectangle> BOXES;
 	private final String ADDRESS;
@@ -27,25 +27,105 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 	private final File PATH;
 	
 	public IPCam(String[] args) {
-		if(args.length < 3)
-			System.exit(0);
-		if (!args[0].startsWith("http"))
-			args[0] = "http://" + args[0];
-		THRESHOLD = Integer.parseInt(args[1]);
-		maxDelay = Long.parseLong(args[2]);
+		boolean fixArgs = true;
+		while (fixArgs) {
+			fixArgs = false;
 
-		if(args.length > 3 && args[3].equals("motion"))
-			drawMotionArea = true;
+			try {
+				if (args.length < 2) {
+					fixArgs = true;
+				}
 
-		if(args.length > 4 && !args[4].equals("IPW"))
-			IPW = false;
+				if (!args[0].startsWith("http"))
+					args[0] = "http://" + args[0];
 
-		if (IPW && args[0].indexOf("192.168.1.") > 0 && !args[0].endsWith(":8080/shot.jpg"))
-			args[0] = args[0] + ":8080/shot.jpg";
+				if (args.length > 2 && !args[2].equals("IPW"))
+					IPW = false;
+
+				if (IPW && args[0].indexOf("192.168.1.") > 0 && !args[0].endsWith(":8080/shot.jpg"))
+					args[0] = args[0] + ":8080/shot.jpg";
+
+				maxDelay = Long.parseLong(args[1]);
+
+				if (args.length == 4) {
+					fixArgs = true;
+				}
+
+				if (args.length > 3) {
+					if (args[3].equals("motion"))
+						detectMotion = true;
+					else if (args[3].equals("display")) {
+						detectMotion = true;
+						drawMotionArea = true;
+					}
+				}
+
+				if (args.length > 4) {
+					threshold = Integer.parseInt(args[4]);
+				}
+			} catch (Exception ex) {
+				fixArgs = true;
+			}
+
+			if (fixArgs) {
+				String[] fa = new String[5];
+				for (int i = 0; i < 5; i++) {
+					fa[i] = "";
+				}
+				System.arraycopy(args, 0, fa, 0, Math.min(args.length, 5));
+				args = fa;
+				File settingsFile = new File("IPCam.ini");
+				if (settingsFile.exists()) {
+					try {
+						Scanner settings = new Scanner(settingsFile);
+						while (settings.hasNextLine()) {
+							String s = settings.nextLine();
+							if (s.startsWith("address:") && args[0].equals(""))
+								args[0] = s.substring(8).trim();
+							else if (s.startsWith("delay_warning_threshold:") && args[1].equals(""))
+								args[1] = s.substring(24).trim();
+							else if (s.startsWith("disable_IPW_features:") && args[2].equals(""))
+								args[2] = s.substring(21).trim();
+							else if (s.startsWith("motion:") && args[3].equals(""))
+								args[3] = s.substring(7).trim();
+							else if (s.startsWith("motion_detect_threshold:") && args[4].equals(""))
+								args[4] = s.substring(24).trim();
+						}
+					} catch(FileNotFoundException fex) {
+					}
+				}
+				if (args[0].equals(""))
+					args[0] = "192.168.1.70";
+				if (args[1].equals(""))
+					args[1] = "3500";
+				if (args[2].equals(""))
+					args[2] = "IPW";
+				if (args[3].equals(""))
+					args[3] = "motion";
+				if (args[4].equals(""))
+					args[4] = "32";
+				JTextField[] fields = new JTextField[5];
+				for (int i = 0; i < fields.length; i++) {
+					fields[i] = new JTextField(args[i]);
+				}
+				final JComponent[] inputs = new JComponent[] {
+					new JLabel("Address:"), fields[0],
+					new JLabel("Delay Warning Threshold (milliseconds):"), fields[1],
+					new JLabel("IPW Features (\"IPW\" to enable):"), fields[2],
+					new JLabel("Motion Detection (\"motion\" to enable, \"display\" to draw motion areas):"), fields[3],
+					new JLabel("Motion Detection Threshold:"), fields[4]
+				};
+				int n = JOptionPane.showConfirmDialog(null, inputs, "IPCam Options", JOptionPane.OK_CANCEL_OPTION);
+				if (n != JOptionPane.OK_OPTION) {
+					System.exit(0);
+				}
+				for (int i = 0; i < fields.length; i++) {
+					args[i] = fields[i].getText();
+				}
+			}
+		}
 
 		ADDRESS = args[0];
-
-		System.out.println(ADDRESS);
 		
 		PATH = new File("log/");
 		if (!PATH.exists())
@@ -53,10 +133,10 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 		
 		FRAME = new JFrame("IPCam");
 		D = Toolkit.getDefaultToolkit().getScreenSize();
-		FRAME.setLocation((D.width - FX) / 2, (D.height - FY) / 2);
+		FRAME.setLocation((D.width - fx) / 2, (D.height - fy) / 2);
 		FRAME.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		FRAME.getContentPane().setBackground(new Color(11, 11, 11));
-		setPreferredSize(new Dimension(FX, FY));
+		// FRAME.getContentPane().setBackground(new Color(11, 11, 11));
+		setPreferredSize(new Dimension(fx, fy));
 		addKeyListener(this);
 		
 		BOXES = new ArrayList<Rectangle>();
@@ -78,6 +158,14 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 				while (true) {
 					try {
 						currImg = ImageIO.read(new URL(ADDRESS));
+						fx = currImg.getWidth();
+						fy = currImg.getHeight();
+						if (!fSet) {
+							setPreferredSize(new Dimension(fx, fy));
+							FRAME.setLocation((D.width - fx) / 2, (D.height - fy) / 2);
+							FRAME.pack();
+							fSet = true;
+						}
 						lastImageTime = System.currentTimeMillis();
 						if (!difference().isEmpty()) {
 							SND.fx();
@@ -109,12 +197,14 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 		FRAME.pack();
 		FRAME.setVisible(true);
 
+		requestFocus();
+
 		// try{
 		// 	Robot rob = new Robot();
 		// 	rob.mouseMove(D.width / 2, D.height / 2);
 		// 	rob.mousePress(InputEvent.BUTTON1_MASK);
 		// 	rob.mouseRelease(InputEvent.BUTTON1_MASK);
-		// 	rob.mouseMove((D.width - FX) / 2 + 15, (D.height - FY) / 2 + 30);
+		// 	rob.mouseMove((D.width - fx) / 2 + 15, (D.height - fy) / 2 + 30);
 		// }catch(Exception e){
 		// }
 	}
@@ -156,7 +246,7 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 				}
 				avgDiff /= ((BLKSIZE * BLKSIZE) / (2 * 2));
 				
-				if (avgDiff > THRESHOLD) {
+				if (avgDiff > threshold) {
 					FRAME.setAlwaysOnTop(true);
 					FRAME.setAlwaysOnTop(false);
 					BOXES.add(new Rectangle(i, j, BLKSIZE, BLKSIZE));
@@ -170,26 +260,18 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 	public void keyPressed(KeyEvent ke) {
 		switch (ke.getKeyCode()) {
 		case KeyEvent.VK_W:
-			w = true;
-			break;
 		case KeyEvent.VK_UP:
 			w = true;
 			break;
 		case KeyEvent.VK_A:
-			a = true;
-			break;
 		case KeyEvent.VK_LEFT:
 			a = true;
 			break;
 		case KeyEvent.VK_S:
-			s = true;
-			break;
 		case KeyEvent.VK_DOWN:
 			s = true;
 			break;
 		case KeyEvent.VK_D:
-			d = true;
-			break;
 		case KeyEvent.VK_RIGHT:
 			d = true;
 			break;
@@ -205,11 +287,11 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 		case KeyEvent.VK_R:
 			dx = dy = 0;
 			zoom = 1.1f;
-			setSize(FX, FY);
-			if (FRAME.getLocation().getX() == (D.width - FX) / 2 && FRAME.getLocation().getY() == (D.height - FY) / 2)
+			setPreferredSize(new Dimension(fx, fy));
+			if (FRAME.getLocation().getX() == (D.width - fx) / 2 && FRAME.getLocation().getY() == (D.height - fy) / 2)
 				FRAME.setLocation(0, 0);
 			else
-				FRAME.setLocation((D.width - FX) / 2, (D.height - FY) / 2);
+				FRAME.setLocation((D.width - fx) / 2, (D.height - fy) / 2);
 			FRAME.pack();
 			break;
 		case KeyEvent.VK_F:
@@ -232,6 +314,9 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 						new URL(ADDRESS + "/" + (torch ? "enable" : "disable") + "torch").openConnection().getInputStream());
 				isr.close();
 			} catch (Exception ex) {}
+			break;
+		case KeyEvent.VK_B:
+			blackBackground = !blackBackground;
 			break;
 		}
 	}
@@ -261,26 +346,18 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 	public void keyReleased(KeyEvent ke) {
 		switch (ke.getKeyCode()) {
 		case KeyEvent.VK_W:
-			w = false;
-			break;
 		case KeyEvent.VK_UP:
 			w = false;
 			break;
 		case KeyEvent.VK_A:
-			a = false;
-			break;
 		case KeyEvent.VK_LEFT:
 			a = false;
 			break;
 		case KeyEvent.VK_S:
-			s = false;
-			break;
 		case KeyEvent.VK_DOWN:
 			s = false;
 			break;
 		case KeyEvent.VK_D:
-			d = false;
-			break;
 		case KeyEvent.VK_RIGHT:
 			d = false;
 			break;
@@ -302,7 +379,7 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 	public void paint(Graphics2D g) {
 		try {
     		AffineTransform at = new AffineTransform(g.getTransform());
-    		at.translate(dx + (FX - currImg.getWidth() * zoom) / 2, dy + (FY - currImg.getHeight() * zoom) / 2);
+    		at.translate(dx + (fx - currImg.getWidth() * zoom) / 2, dy + (fy - currImg.getHeight() * zoom) / 2);
 			at.scale(zoom, zoom);
 			g.setTransform(at);
 		} catch (Exception ex) {
@@ -341,8 +418,20 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 		Dimension d = getSize();
 		offscreen = createImage(d.width, d.height);
 		offgc = offscreen.getGraphics();
-		offgc.setColor(getBackground());
-		offgc.fillRect(0, 0, d.width, d.height);
+		if (blackBackground) {
+			offgc.setColor(Color.BLACK);
+			offgc.fillRect(0, 0, getWidth(), getHeight());
+		} else {
+			offgc.setColor(Color.WHITE);
+			offgc.fillRect(0, 0, getWidth(), getHeight());
+			offgc.setColor(new Color(191, 191, 191));
+			for (int i = 0; i < getWidth(); i += 16) {
+				for (int j = 0; j < getHeight(); j += 16) {
+					offgc.fillRect(i, j, 8, 8);
+					offgc.fillRect(i + 8, j + 8, 8, 8);
+				}
+			}
+		}
 		offgc.setColor(getForeground());
 		paint(offgc);
 		g.drawImage(offscreen, 0, 0, this);
