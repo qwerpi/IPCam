@@ -10,7 +10,6 @@ import javax.swing.*;
 import javax.imageio.*;
 
 public class IPCam extends Canvas implements KeyListener, ActionListener {
-	
 	private int dx, dy, speed = 1, fx = 320, fy = 480, threshold;
 	private float zoom = 1.1f;
 	private boolean torch, focus, w, a, s, d, q, e, blackBackground, overDelayThreshold, detectMotion = false, drawMotionArea = false, IPW = true, fSet = false;
@@ -137,7 +136,6 @@ public class IPCam extends Canvas implements KeyListener, ActionListener {
 		FRAME.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		// FRAME.getContentPane().setBackground(new Color(11, 11, 11));
 		setPreferredSize(new Dimension(fx, fy));
-		addKeyListener(this);
 		
 		BOXES = new ArrayList<Rectangle>();
 		SND = new Sound();

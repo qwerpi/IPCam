@@ -20,6 +20,6 @@ Shift + direction - speed up
                 R - reset window
                 Q - zoom out
                 E - zoom in
+                B - change background (black/checkboard)
                 F - refocus (IPW option only)
-                T - torch (IPW option only)
-                A - move image left</code></pre>
+                T - torch (IPW option only)</code></pre>
