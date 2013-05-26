@@ -14,7 +14,6 @@ import javax.swing.*;
 import javax.imageio.*;
 
 public class IPCam extends Canvas implements KeyListener, ActionListener {
-	
 	private int dx, dy, speed = 1, fx = 320, fy = 480, threshold;
 	private float zoom = 1.1f;
 	private boolean torch, focus, w, a, s, d, q, e, blackBackground, overDelayThreshold, detectMotion = false, drawMotionArea = false, IPW = true, fSet = false;

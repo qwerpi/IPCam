@@ -1,2 +1,3 @@
 *.class
 manifest.txt
+log/*
